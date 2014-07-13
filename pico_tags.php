@@ -86,29 +86,30 @@ class Pico_Tags {
 
 		$is_index = ($this->base_url == $current_page["url"]);
 
-		if ($this->is_tag || $is_index) {
-			$new_pages = array();
+		$new_pages = array();
 
-			foreach ($pages as $page) {
-				$file_url = substr($page["url"], strlen($this->base_url));
-				$file_name = CONTENT_DIR . $file_url . ".md";
-				
-				// get metadata from page
-				if (file_exists($file_name)) {
-					$file_content = file_get_contents($file_name);
-					$file_meta = $this->read_file_meta($file_content);
-					$page = array_merge($page, $file_meta);
-
+		foreach ($pages as $page) {
+			$file_url = substr($page["url"], strlen($this->base_url));
+			if($file_url[strlen($file_url) - 1] == "/") $file_url .= 'index';
+			$file_name = CONTENT_DIR . $file_url . ".md";
+			// get metadata from page
+			if (file_exists($file_name)) {
+				$file_content = file_get_contents($file_name);
+				$file_meta = $this->read_file_meta($file_content);
+				$page = array_merge($page, $file_meta);
+				if ($this->is_tag || $is_index) {
 					// append to pages array only if tags match, or if it's index page
 					$tags = $file_meta['tags'];
 					if (count($tags) > 0 && (in_array($this->current_tag, $tags) || $is_index)) {
 						array_push($new_pages, $page);
 					}
+				}else{
+					array_push($new_pages, $page);
 				}
 			}
-
-			$pages = $new_pages;
 		}
+
+		$pages = $new_pages;
 	}
 
 	public function before_twig_register() {
