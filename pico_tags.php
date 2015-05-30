@@ -108,11 +108,12 @@ class Pico_Tags {
 
 	}
 
-	public function before_render(&$twig_vars, &$twig) {
+	public function before_render(&$twig_vars, &$twig, &$template) {
 		if ($this->is_tag) {
 			// override 404 header
 			header($_SERVER['SERVER_PROTOCOL'].' 200 OK');
 			
+			$template = "tags";
 			// set as front page, allows using the same navigation for index and tag pages
 			$twig_vars["is_front_page"] = true;
 			// sets page title to #TAG
