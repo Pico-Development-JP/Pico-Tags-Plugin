@@ -97,15 +97,7 @@ class Pico_Tags {
 				$file_content = file_get_contents($file_name);
 				$file_meta = $this->read_file_meta($file_content);
 				$page = array_merge($page, $file_meta);
-				if ($this->is_tag || $is_index) {
-					// append to pages array only if tags match, or if it's index page
-					$tags = $file_meta['tags'];
-					if (count($tags) > 0 && (in_array($this->current_tag, $tags) || $is_index)) {
-						array_push($new_pages, $page);
-					}
-				}else{
-					array_push($new_pages, $page);
-				}
+				array_push($new_pages, $page);
 			}
 		}
 
