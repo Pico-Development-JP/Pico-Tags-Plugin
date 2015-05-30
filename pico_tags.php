@@ -117,6 +117,14 @@ class Pico_Tags {
 			$twig_vars["is_front_page"] = true;
 			// sets page title to #TAG
 			$twig_vars["meta"]["title"] = "#" . $this->current_tag;
+			$pages = $twig_vars["pages"];
+			$tagpages = array();
+  		foreach ($pages as $page) {
+			  if(in_array($this->current_tag, $page["tags"])) {
+			    array_push($tagpages, $page);
+			  }
+			}
+			$twig_vars["showpages"] = $tagpages;
 		}
 		else {
 			// add tags to post meta
