@@ -121,7 +121,7 @@ class Pico_Tags {
 			$pages = $twig_vars["pages"];
 			$tagpages = array();
   		foreach ($pages as $page) {
-			  if(in_array($this->current_tag, $page["tags"])) {
+			  if(isset($page["tags"]) && in_array($this->current_tag, $page["tags"])) {
 			    array_push($tagpages, $page);
 			  }
 			}
