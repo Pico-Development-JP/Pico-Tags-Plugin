@@ -42,16 +42,17 @@ class Pico_Tags extends AbstractPicoPlugin {
   	$headers['tags'] = 'Tags';
   }
 
-  public function onMetaParsed(array &$meta)
+  public function onSinglePageLoaded(array &$pageData)
   {
     // tagsメタデータを見て変換処理を行う
     // ・,が入っていれば配列にする（ただしすでに配列であった場合、何もしない（旧記法対応））
     // ・要素が一つしか無かった場合も配列にする
+    $meta = $pageData['meta'];
     if(!is_array($meta["tags"])){
-      $meta["tags"] = explode(",", $meta["tags"]);
+      $pageData["tags"] = explode(",", $meta["tags"]);
+      // sitetags配列に格納
+      $this->sitetags += $pageData["tags"];
     }
-    // sitetags配列に格納
-    $this->sitetags += $meta["tags"];
   }
 
 	public function onConfigLoaded(array &$config) 
@@ -66,7 +67,12 @@ class Pico_Tags extends AbstractPicoPlugin {
 			// override 404 header
 			header($_SERVER['SERVER_PROTOCOL'].' 200 OK');
 			
-			$templateName = "tags";
+      $pico = $this->getPico();
+      if (file_exists($pico->getThemesDir() . $pico->getConfig('theme') . '/tags.twig')) {
+          $templateName .= 'tags.twig';
+      } else {
+          $templateName .= 'tags.html';
+      }
 			// set as front page, allows using the same navigation for index and tag pages
 			$twigVariables["is_front_page"] = true;
 			// sets page title to #TAG
@@ -78,8 +84,7 @@ class Pico_Tags extends AbstractPicoPlugin {
           array_push($tagpages, $page);
         }
 			}
-      var_dump($tagpages);
-//			$twigVariables["showpages"] = $tagpages;
+			$twigVariables["showpages"] = $tagpages;
 		}
     $twigVariables["sitetags"] = array_unique($this->sitetags);
 	}
