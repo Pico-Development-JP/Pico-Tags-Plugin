@@ -12,38 +12,24 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-class Pico_Tags {
+class Pico_Tags extends AbstractPicoPlugin {
+  protected $enabled = false;
+
 	private $base_url;
 	private $current_url;
 	private $current_tag;
 	private $is_tag;
-	private $current_meta;
   private $content_dir;
+  private $sitetags;
+
+  public function __construct(Pico $pico)
+  {
+    parent::__construct($pico);
+    $this->sitetags = array();  
+  }
   
-	// copied from pico source, $headers as array gives ability to add additional metadata, e.g. header image
-	private function read_file_meta($content) {
-		$headers = array('tags' => 'Tags');
-
-	 	foreach ($headers as $field => $regex) {
-			if (preg_match('/^[ \t\/*#@]*' . preg_quote($regex, '/') . ':(.*)$/mi', $content, $match) && $match[1]){
-				$headers[ $field ] = trim(preg_replace("/\s*(?:\*\/|\?>).*/", '', $match[1]));
-			} else {
-				$headers[ $field ] = '';
-			}
-		}
-
-		// only set $headers['tags'] if there are any
-		if (strlen($headers['tags']) > 1) $headers['tags'] = explode(',', $headers['tags']);
-		else $headers['tags'] = NULL;
-
-		return $headers;
-	}
-
-	public function plugins_loaded() {
-
-	}
-
-	public function request_url(&$url) {
+	public function onRequestUrl(&$url)
+  {
 		$this->current_url = $url;
 
 		// substr first four letters, becouse "tag/" is four letters long
@@ -51,92 +37,56 @@ class Pico_Tags {
 		if ($this->is_tag) $this->current_tag = substr($this->current_url, 4);
 	}
 
-	public function before_load_content(&$file) {
+  public function onMetaHeaders(array &$headers)
+  {
+  	$headers['tags'] = 'Tags';
+  }
 
+  public function onSinglePageLoaded(array &$pageData)
+  {
+    // tagsメタデータを見て変換処理を行う
+    // ・,が入っていれば配列にする（ただしすでに配列であった場合、何もしない（旧記法対応））
+    // ・要素が一つしか無かった場合も配列にする
+    $meta = $pageData['meta'];
+    if(!is_array($meta["tags"])){
+      $pageData["tags"] = explode(",", $meta["tags"]);
+      // sitetags配列に格納
+      $this->sitetags += $pageData["tags"];
+    }
+  }
+
+	public function onConfigLoaded(array &$config) 
+  {
+		$this->base_url = $config['base_url'];
+    $this->content_dir = $config["content_dir"];
 	}
 
-	public function after_load_content(&$file, &$content) {
-		$this->current_meta = $this->read_file_meta($content);
-	}
-
-	public function before_404_load_content(&$file) {
-
-	}
-
-	public function after_404_load_content(&$file, &$content) {
-
-	}
-
-	public function config_loaded(&$settings) {
-		$this->base_url = $settings['base_url'];
-    $this->content_dir = ROOT_DIR . $settings["content_dir"];
-	}
-
-	public function file_meta(&$meta) {
-
-	}
-
-	public function content_parsed(&$content) {
-
-	}
-
-	public function get_pages(&$pages, &$current_page, &$prev_page, &$next_page) {
-		// display pages with current tag if visiting tag/ url
-		// display only pages with tags when visiting index page
-		// this adds possiblity to distinct tagged pages (e.g. blog posts),
-		// and untagged (e.g. static pages like "about")
-
-		$is_index = ($this->base_url == $current_page["url"]);
-
-		$new_pages = array();
-
-		foreach ($pages as $page) {
-			$file_url = substr($page["url"], strlen($this->base_url));
-			if($file_url[strlen($file_url) - 1] == "/") $file_url .= 'index';
-			$file_name = $this->content_dir . $file_url . ".md";
-			// get metadata from page
-			if (file_exists($file_name)) {
-				$file_content = file_get_contents($file_name);
-				$file_meta = $this->read_file_meta($file_content);
-				$page = array_merge($page, $file_meta);
-				array_push($new_pages, $page);
-			}
-		}
-
-		$pages = $new_pages;
-	}
-
-	public function before_twig_register() {
-
-	}
-
-	public function before_render(&$twig_vars, &$twig, &$template) {
+  public function onPageRendering(Twig_Environment &$twig, array &$twigVariables, &$templateName)
+  {
 		if ($this->is_tag) {
 			// override 404 header
 			header($_SERVER['SERVER_PROTOCOL'].' 200 OK');
 			
-			$template = "tags";
+      $pico = $this->getPico();
+      if (file_exists($pico->getThemesDir() . $pico->getConfig('theme') . '/tags.twig')) {
+          $templateName .= 'tags.twig';
+      } else {
+          $templateName .= 'tags.html';
+      }
 			// set as front page, allows using the same navigation for index and tag pages
-			$twig_vars["is_front_page"] = true;
+			$twigVariables["is_front_page"] = true;
 			// sets page title to #TAG
-			$twig_vars["meta"]["title"] = "#" . $this->current_tag;
-			$pages = $twig_vars["pages"];
+			$twigVariables["meta"]["title"] = "#" . $this->current_tag;
+			$pages = $twigVariables["pages"];
 			$tagpages = array();
   		foreach ($pages as $page) {
-			  if(isset($page["tags"]) && in_array($this->current_tag, $page["tags"])) {
-			    array_push($tagpages, $page);
-			  }
+        if(isset($page["tags"]) && in_array($this->current_tag, $page["tags"])) {
+          array_push($tagpages, $page);
+        }
 			}
-			$twig_vars["showpages"] = $tagpages;
+			$twigVariables["showpages"] = $tagpages;
 		}
-		else {
-			// add tags to post meta
-			$twig_vars["meta"] = array_merge($twig_vars["meta"], $this->current_meta);
-		}
-	}
-
-	public function after_render(&$output) {
-
+    $twigVariables["sitetags"] = array_unique($this->sitetags);
 	}
 }
 
