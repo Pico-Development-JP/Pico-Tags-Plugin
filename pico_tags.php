@@ -69,9 +69,9 @@ class Pico_Tags extends AbstractPicoPlugin {
 			
       $pico = $this->getPico();
       if (file_exists($pico->getThemesDir() . $pico->getConfig('theme') . '/tags.twig')) {
-          $templateName .= 'tags.twig';
+          $templateName = 'tags.twig';
       } else {
-          $templateName .= 'tags.html';
+          $templateName = 'tags.html';
       }
 			// set as front page, allows using the same navigation for index and tag pages
 			$twigVariables["is_front_page"] = true;
